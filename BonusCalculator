@@ -1,0 +1,124 @@
+Command Code:
+gedit bonusCalculator.sh
+
+#!/bin/bash
+
+# Constants
+declare -A model_prices=(
+  ["A"]=31095
+  ["B"]=33162
+  ["C"]=42537
+  ["E"]=54437
+  ["AMG"]=79660
+)
+
+BASIC_SALARY=2000
+TAX_FREE_ALLOWANCE=12500
+
+# Function to calculate bonus
+get_bonus() {
+  if (( $1 >= 650000 )); then echo 30000
+  elif (( $1 >= 500000 )); then echo 25000
+  elif (( $1 >= 400000 )); then echo 20000
+  elif (( $1 >= 300000 )); then echo 15000
+  elif (( $1 >= 200000 )); then echo 10000
+  else echo 0
+  fi
+}
+
+# Function to calculate tax
+calculate_tax() {
+  local annual_salary=$1
+  local taxable=$((annual_salary - TAX_FREE_ALLOWANCE))
+  local tax=0
+  if (( taxable > 0 )); then
+    if (( taxable <= 37500 )); then
+      tax=$((taxable * 20 / 100))
+    else
+      tax=$((37500 * 20 / 100 + (taxable - 37500) * 40 / 100))
+    fi
+  fi
+  echo $((tax / 12))  # Monthly tax
+}
+
+# Get month and output path
+month=$(whiptail --inputbox "Enter Month:" 10 50 --title "Month Input" 3>&1 1>&2 2>&3)
+file_path=$(whiptail --inputbox "Enter file output path (e.g. /home/user/report.txt):" 10 70 --title "Output File Path" 3>&1 1>&2 2>&3)
+
+# Get number of salespersons
+while true; do
+  num_salespersons=$(whiptail --inputbox "Enter number of salespersons (3-20):" 10 50 --title "Salespersons" 3>&1 1>&2 2>&3)
+  if [[ "$num_salespersons" =~ ^[0-9]+$ ]] && (( num_salespersons >= 3 && num_salespersons <= 20 )); then
+    break
+  else
+    whiptail --msgbox "❌ Invalid number. Please enter a number between 3 and 20." 10 50
+  fi
+done
+
+declare -a names
+declare -a net_salaries
+
+# Input for each salesperson
+for ((i=0; i<num_salespersons; i++)); do
+  name=$(whiptail --inputbox "Enter name of salesperson $((i+1)):" 10 50 --title "Salesperson Name" 3>&1 1>&2 2>&3)
+  names[$i]=$name
+
+  model_choices=$(whiptail --checklist \
+    "Select models sold by $name:" 15 50 6 \
+    "A" "A Class (£31,095)" OFF \
+    "B" "B Class (£33,162)" OFF \
+    "C" "C Class (£42,537)" OFF \
+    "E" "E Class (£54,437)" OFF \
+    "AMG" "AMG C65 (£79,660)" OFF \
+    3>&1 1>&2 2>&3)
+
+  total_sales=0
+  for model in $model_choices; do
+    clean_model=$(echo $model | tr -d '"')
+    total_sales=$((total_sales + model_prices[$clean_model]))
+  done
+
+  bonus=$(get_bonus $total_sales)
+  gross_monthly=$((BASIC_SALARY + bonus))
+  tax_monthly=$(calculate_tax $((gross_monthly * 12)))
+  net_monthly=$((gross_monthly - tax_monthly))
+  net_salaries[$i]=$net_monthly
+
+  summary="Name: $name\nTotal Sales: £$total_sales\nBonus: £$bonus\nGross Salary: £$gross_monthly\nTax: £$tax_monthly\nNet Salary: £$net_monthly"
+  whiptail --msgbox "$summary" 12 60 --title "Summary for $name"
+done
+
+# Bubble sort names and salaries
+for ((i = 0; i < num_salespersons; i++)); do
+  for ((j = 0; j < num_salespersons - i - 1; j++)); do
+    if [[ "${names[j]}" > "${names[j+1]}" ]]; then
+      # Swap names
+      temp="${names[j]}"
+      names[j]="${names[j+1]}"
+      names[j+1]="$temp"
+      # Swap salaries
+      temp="${net_salaries[j]}"
+      net_salaries[j]="${net_salaries[j+1]}"
+      net_salaries[j+1]="$temp"
+    fi
+  done
+done
+
+# Save to file
+{
+  echo "Mercedes Benz Dealership Salary Report"
+  echo "Month: $month"
+  echo "-------------------------------------"
+  for ((i=0; i<num_salespersons; i++)); do
+    echo "Name: ${names[i]} - Net Salary: £${net_salaries[i]}"
+  done
+} > "$file_path"
+
+whiptail --msgbox "✅ Report saved to: $file_path" 10 50 --title "Done"
+
+
+To give file permission:
+chmod +x bonusCalculator.sh
+
+Run command:
+./bonusCalculator.sh
