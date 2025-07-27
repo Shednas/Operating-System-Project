@@ -1,1 +1,8 @@
+Command to run: gedit ~/.bash_profile
 
+Code:
+PS1='\[\e[1;97;44m\] Sandesh_24813026: \[\e[0m\] '
+
+Output:
+Sandesh_24813026: 
+in blue color
